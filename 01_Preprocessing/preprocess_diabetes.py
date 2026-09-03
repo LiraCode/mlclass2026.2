@@ -73,8 +73,8 @@ def preencher_valores_ausentes(df, rng):
  
         valores_validos = df.loc[df[col].notna(), col].values
         if len(valores_validos) == 0:
-            print(f'   [AVISO] Coluna "{col}" não possui nenhum valor válido '
-                  f'para basear o preenchimento; pulando.')
+            print(f'   [AVISO] Coluna "{col}" não possui nenhum valor válido. '
+                  f' pulando.')
             continue
  
         valores_sorteados = rng.choice(valores_validos, size=n_ausentes, replace=True)
@@ -88,24 +88,16 @@ def preencher_valores_ausentes(df, rng):
  
  
 def normalizar_features(df, colunas_features, params=None):
-    """
-    Escala as features usando mediana e intervalo interquartil (IQR).
- 
-    Se `params` for None, ajusta um RobustScaler a partir do próprio df
-    (uso: dataset de treino) e devolve o scaler ajustado.
-    Se `params` for fornecido, reutiliza o RobustScaler ajustado no treino
-    (uso: diabetes_app, que precisa da mesma escala — nunca recalcular no
-    próprio app, senão o KNN fica inconsistente).
-    """
+
     df = df.copy()
     calculando = params is None
     if calculando:
         params = RobustScaler()
         df[colunas_features] = params.fit_transform(df[colunas_features])
-        print('   -> Features normalizadas por mediana e IQR [calculado agora].')
+        print('   -> Normalizando dataset.')
     else:
         df[colunas_features] = params.transform(df[colunas_features])
-        print('   -> Features normalizadas por mediana e IQR [reaproveitado do treino].')
+        print('   -> aplicando a normalização no diabetes_app.')
  
     return df, params
  
