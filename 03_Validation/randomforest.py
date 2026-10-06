@@ -59,7 +59,7 @@ def run_abalone_experiment(
         path.parent.mkdir(parents=True, exist_ok=True)
         params = {key.removeprefix("rf__"): value for key, value in search.best_params_.items()}
         path.write_text(json.dumps(params, indent=2) + "\n", encoding="utf-8")
-        print(f"Parâmetros para forestsent.py salvos em {path}")
+        print(f"Parâmetros para send_model.py salvos em {path}")
     return search
 
 

@@ -14,7 +14,7 @@ from sklearn.base import clone
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from abalone_csv import URL, send_predictions
-from forestsent import run_abalone_experiment
+from send_model import run_abalone_experiment
 from localrun import build_knn_search, nested_cv_knn, select_best_model
 from randomforest import build_forest_pipeline
 from tratamento import DATA_DIR, FeatureEngineer, add_features, build_preprocessor, load_training_data
@@ -119,9 +119,9 @@ class ValidationTests(unittest.TestCase):
             pd.testing.assert_index_equal(search.fit.call_args.args[0].index, train.index)
         searches["RandomForest"].best_estimator_.predict.assert_not_called()
 
-    @patch("forestsent.send_predictions", return_value="ok")
-    @patch("forestsent.clone")
-    @patch("forestsent.select_best_model")
+    @patch("send_model.send_predictions", return_value="ok")
+    @patch("send_model.clone")
+    @patch("send_model.select_best_model")
     def test_submission_uses_refitted_winner(self, select, clone_model, send):
         selected = Mock()
         select.return_value = (selected, {"selected_model": "LogReg"})
@@ -138,7 +138,7 @@ class ValidationTests(unittest.TestCase):
         send.assert_called_once()
         self.assertIs(send.call_args.args[0], expected)
 
-    @patch("forestsent.select_best_model", side_effect=ValueError("CV falhou"))
+    @patch("send_model.select_best_model", side_effect=ValueError("CV falhou"))
     @patch("abalone_csv.requests.post")
     def test_validation_failure_prevents_submission(self, post, select):
         with self.assertRaisesRegex(ValueError, "CV falhou"):
@@ -163,12 +163,12 @@ class ValidationTests(unittest.TestCase):
 
     @patch("abalone_csv.requests.post")
     def test_imports_have_no_network_side_effects(self, post):
-        for module in ("abalone_csv", "forestsent", "randomforest", "localrun", "tratamento"):
+        for module in ("abalone_csv", "send_model", "randomforest", "localrun", "tratamento"):
             importlib.reload(sys.modules[module])
         post.assert_not_called()
 
     @patch("abalone_csv.requests.post")
-    def test_forest_dry_run_predicts_every_application_row(self, post):
+    def test_selection_dry_run_predicts_every_application_row(self, post):
         with tempfile.TemporaryDirectory() as directory:
             params_path = Path(directory) / "params.json"
             params_path.write_text(json.dumps({"n_estimators": 5}), encoding="utf-8")
