@@ -1,18 +1,8 @@
 
-# Created by https://www.gitignore.io/api/r,java,linux,macos,python,windows
-
-### Java ###
-# Compiled class file
-*.class
-
 # Log file
 *.log
 
-# BlueJ files
-*.ctxt
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
 
 # Package Files #
 *.jar
@@ -223,5 +213,8 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# jsons gerados
+  03_Validation/selection_report.json
+  03_Validation/forest_params.json
+  03_Validation/selection_report_extended.json
 
-# End of https://www.gitignore.io/api/r,java,linux,macos,python,windows
