@@ -114,27 +114,23 @@ linhas e os atributos originais, valida as colunas e cria quatro razões:
 - `meat_yield`: `shucked_weight / whole_weight`.
 - `shell_ratio`: `shell_weight / whole_weight`.
 
-Os dois CSVs originais não contêm valores ausentes. No dataset rotulado, duas
+Os dois CSVs não contêm valores ausentes. No dataset, duas
 observações têm `height = 0` (linhas 198 e 3080 do CSV, contando o cabeçalho).
 A divisão inválida gera `NaN` em `bmi`, que o pipeline preenche com a mediana
 aprendida no treino. A altura original permanece zero. No CSV de aplicação,
 a criação das razões não gera ausências.
 
-A categoria `sex` recebe codificação one-hot. A imputação pela moda está
-configurada como proteção para eventuais ausências, mas não preenche nenhum
-valor de `sex` nos dados atuais. Categorias desconhecidas são ignoradas pelo
-codificador, sem interromper a previsão.
+A categoria `sex` recebe codificação one-hot.
 
 KNN, regressão logística e SVM usam `StandardScaler`; Random Forest, HGB e
 Extra Trees não usam padronização. Imputação, categorias e escala são aprendidas
-somente no treino de cada partição. O fluxo de seleção não aplica SMOTE,
-winsorização ou PCA. A opção de excluir atributos originais foi removida.
+somente no treino de cada partição.
 
 ### Exemplo básico de envio
 
-`abalone_csv.py` permanece como exemplo alternativo simples com KNN k=3. Ele não faz
-a seleção automática; para isso, use `send_model.py`. O endpoint e os campos
-`dev_key` e `predictions` permanecem iguais. Confira `--dev-key` e respeite o limite
+`abalone_csv.py` exemplo alternativo simples com KNN k=3. Ele não faz
+a seleção automática; para isso, use `send_model.py`. també está o endpoint e os campos
+`dev_key` e `predictions`. Confira `--dev-key` e respeite o limite
 de um envio a cada 12h. Importar os módulos não treina nem envia previsões.
 
 ### Comparação dos modelos
