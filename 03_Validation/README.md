@@ -86,31 +86,91 @@ o paralelismo. Para conferir rapidamente: `--n-iter 2 --cv 3 --jobs 1`. Essa bus
 curta serve para testar o fluxo, não substitui uma busca completa. `localrun.py`
 aceita também `--nested`, que adiciona uma estimativa por CV aninhada apenas do KNN.
 
-`randomforest.py` disponível para um experimento exclusivo de Random Forest
-que salva `forest_params.json`. Esse passo não é obrigatório para o envio automático.
-Opcionalmente, `send_model.py --params 03_Validation/forest_params.json` avalia essa
-configuração fixa de floresta na comparação com os demais algoritmos; ela não
-força a seleção da floresta.
+### Experimento específico de Random Forest
 
-`tratamento.py` concentra os pipelines: preserva as linhas e os atributos originais,
-adiciona quatro razões e aprende imputação, categorias e escala apenas nos treinos.
-Árvores dispensam escala. SMOTE, winsorização e PCA não são aplicados por padrão.
-Executá-lo diretamente exporta atributos determinísticos; não é um pré-requisito.
+`randomforest.py` busca hiperparâmetros com validação cruzada no treino, avalia
+no teste reservado e imprime acurácia, relatório por classe e matriz de confusão.
+Salva os parâmetros em `forest_params.json`, sem enviar previsões ao servidor.
+
+```bash
+python 03_Validation/randomforest.py --n-iter 20 --cv 5 --jobs 2
+
+# Compara a floresta com parâmetros fixos com os outros cinco modelos, sem enviar.
+python 03_Validation/send_model.py --params 03_Validation/forest_params.json --dry-run
+```
+
+Esse experimento é opcional. `--params` fixa apenas a configuração candidata de
+Random Forest; a seleção continua usando a acurácia de CV de todos os modelos.
+`--params-output` permite escolher onde salvar os parâmetros da floresta.
+
+### Pré-processamento compartilhado
+
+`tratamento.py` é importado pelos scripts de treino e envio. Não precisa ser
+executado separadamente e não exporta um CSV pré-processado. Preserva todas as
+linhas e os atributos originais, valida as colunas e cria quatro razões:
+
+- `bmi`: `whole_weight / height²` (nome usado no código).
+- `length_dia_ratio`: `length / diameter`.
+- `meat_yield`: `shucked_weight / whole_weight`.
+- `shell_ratio`: `shell_weight / whole_weight`.
+
+Os dois CSVs originais não contêm valores ausentes. No dataset rotulado, duas
+observações têm `height = 0` (linhas 198 e 3080 do CSV, contando o cabeçalho).
+A divisão inválida gera `NaN` em `bmi`, que o pipeline preenche com a mediana
+aprendida no treino. A altura original permanece zero. No CSV de aplicação,
+a criação das razões não gera ausências.
+
+A categoria `sex` recebe codificação one-hot. A imputação pela moda está
+configurada como proteção para eventuais ausências, mas não preenche nenhum
+valor de `sex` nos dados atuais. Categorias desconhecidas são ignoradas pelo
+codificador, sem interromper a previsão.
+
+KNN, regressão logística e SVM usam `StandardScaler`; Random Forest, HGB e
+Extra Trees não usam padronização. Imputação, categorias e escala são aprendidas
+somente no treino de cada partição. O fluxo de seleção não aplica SMOTE,
+winsorização ou PCA. A opção de excluir atributos originais foi removida.
+
+### Exemplo básico de envio
 
 `abalone_csv.py` permanece como exemplo alternativo simples com KNN k=3. Ele não faz
 a seleção automática; para isso, use `send_model.py`. O endpoint e os campos
 `dev_key` e `predictions` permanecem iguais. Confira `--dev-key` e respeite o limite
 de um envio a cada 12h. Importar os módulos não treina nem envia previsões.
 
-### Ampliação da comparação
+### Comparação dos modelos
 
-SVM com kernel RBF e Extra Trees foram acrescentados à seleção automática. Ambos
+A seleção automática inclui SVM com kernel RBF e Extra Trees. Ambos
 comparam atributos originais com e sem as quatro razões. A opção vencedora fica
-registrada como `prep__features__include_ratios` no relatório. Os espaços de busca
-dos quatro classificadores anteriores foram preservados, permitindo comparar a
-ampliação com a configuração anterior usando a mesma semente e número de partições.
-A busca agora custa mais tempo porque avalia seis algoritmos. `--jobs 2` limita a
-quantidade de ajustes paralelos. Nenhum novo pacote é necessário.
+registrada como `prep__features__include_ratios` no relatório. A busca avalia seis algoritmos.
+`--jobs 2` limita a quantidade de ajustes paralelos.
 
 Uma acurácia maior na validação não garante melhora no servidor. O teste reservado
 já foi consultado em experimentos anteriores: não deve orientar novos ajustes.
+
+
+### Resultados registrados
+
+Na execução com `--n-iter 20 --cv 5` e semente 42, a SVM com kernel RBF foi
+selecionada com `C = 1.0`, `gamma = scale`, sem pesos de classe e com as quatro
+razões. O experimento usou 2.505 amostras para busca e 627 para teste local.
+
+- Acurácia média na validação cruzada: **65,83%**.
+- Acurácia no teste local: **67,15%**; F1-macro: **67,06%**.
+- Acurácia no servidor, informada pela equipe Delta: **66,12%**
+  (`accuracy = 0.661244019138756`, `status = success`).
+- Resultado anterior no servidor: **65,07%** (`old_accuracy = 0.65071770334928`).
+  Ganho de **1,05 ponto percentual**.
+
+A matriz de confusão reproduzida no teste local tem linhas de classe real e
+colunas de classe prevista, ambas na ordem 1, 2 e 3:
+
+```text
+166   44    6
+ 34  116   51
+ 14   57  139
+```
+
+São 421 acertos em 627 amostras. Essa matriz é do teste local: o retorno do
+servidor contém apenas a acurácia, sem rótulos ou matriz de confusão externa.
+Os resultados acima descrevem a execução registrada, não qualquer nova busca
+com outras opções. A diferença observada não demonstra superioridade estatística.

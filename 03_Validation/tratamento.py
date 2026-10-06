@@ -28,12 +28,6 @@ def load_data(file_path: str | Path) -> pd.DataFrame:
     return pd.read_csv(file_path)
 
 
-def save_data(df: pd.DataFrame, file_path: str | Path) -> None:
-    path = Path(file_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=False)
-
-
 def validate_features(df: pd.DataFrame) -> None:
     missing = sorted(set(RAW_COLUMNS) - set(df.columns))
     if missing:
@@ -56,7 +50,7 @@ def _safe_div(numer: pd.Series, denom: pd.Series) -> pd.Series:
     return numer.div(denom.replace(0, np.nan)).replace([np.inf, -np.inf], np.nan)
 
 
-def add_features(df: pd.DataFrame, drop_original: bool = False) -> pd.DataFrame:
+def add_features(df: pd.DataFrame) -> pd.DataFrame:
     """Mantém índice e número de linhas, deixando divisões inválidas para imputação."""
     validate_features(df)
     result = df.copy()
@@ -66,16 +60,13 @@ def add_features(df: pd.DataFrame, drop_original: bool = False) -> pd.DataFrame:
     result["length_dia_ratio"] = _safe_div(result["length"], result["diameter"])
     result["meat_yield"] = _safe_div(result["shucked_weight"], result["whole_weight"])
     result["shell_ratio"] = _safe_div(result["shell_weight"], result["whole_weight"])
-    if drop_original:
-        result = result.drop(columns=[c for c in NUMERIC_COLUMNS if c != "viscera_weight"])
     return result
 
 
 class FeatureEngineer(TransformerMixin, BaseEstimator):
     """Transformação determinística, sem incluir alvo ou colunas extras no modelo."""
 
-    def __init__(self, drop_original: bool = False, include_ratios: bool = True):
-        self.drop_original = drop_original
+    def __init__(self, include_ratios: bool = True):
         self.include_ratios = include_ratios
 
     def fit(self, X: pd.DataFrame, y=None):
@@ -87,11 +78,11 @@ class FeatureEngineer(TransformerMixin, BaseEstimator):
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         check_is_fitted(self)
         validate_features(X)
-        result = add_features(X[RAW_COLUMNS], drop_original=self.drop_original)
+        result = add_features(X[RAW_COLUMNS])
         return result if self.include_ratios else result.drop(columns=FEATURE_COLUMNS)
 
 
-def build_preprocessor(scale: bool = False, drop_original: bool = False) -> Pipeline:
+def build_preprocessor(scale: bool = False) -> Pipeline:
     numeric_steps = [("imputer", SimpleImputer(strategy="median", keep_empty_features=True))]
     if scale:
         numeric_steps.append(("scaler", StandardScaler()))
@@ -102,21 +93,4 @@ def build_preprocessor(scale: bool = False, drop_original: bool = False) -> Pipe
             ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
         ]), ["sex"]),
     ])
-    return Pipeline([("features", FeatureEngineer(drop_original)), ("columns", columns)])
-
-
-def main() -> None:
-    """Exporta apenas atributos determinísticos; não ajusta estatísticas no CSV inteiro."""
-    import argparse
-
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--csv", type=Path, default=DATA_DIR / "abalone_dataset.csv")
-    parser.add_argument("--output", type=Path, default=DATA_DIR / "preprocessed_dataset.csv")
-    args = parser.parse_args()
-    data = add_features(load_data(args.csv))
-    save_data(data, args.output)
-    print(f"{len(data)} linhas salvas em {args.output}. Imputação e escala ficam no pipeline de treino.")
-
-
-if __name__ == "__main__":
-    main()
+    return Pipeline([("features", FeatureEngineer()), ("columns", columns)])

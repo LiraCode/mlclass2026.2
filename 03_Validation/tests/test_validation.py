@@ -36,12 +36,12 @@ class ValidationTests(unittest.TestCase):
         model = build_forest_pipeline(n_estimators=5).fit(data, self.y.iloc[:12])
         self.assertEqual(len(model.predict(data)), len(data))
 
-    def test_feature_engineer_excludes_target_and_honors_drop_original(self):
+    def test_feature_engineer_excludes_target_and_preserves_raw_features(self):
         data = self.X.iloc[:10].assign(type=self.y.iloc[:10], extra=123)
-        result = clone(FeatureEngineer(drop_original=True)).fit_transform(data)
+        result = clone(FeatureEngineer()).fit_transform(data)
         self.assertNotIn("type", result)
         self.assertNotIn("extra", result)
-        self.assertNotIn("length", result)
+        self.assertIn("length", result)
         self.assertIn("viscera_weight", result)
 
     def test_imputation_is_learned_only_from_train(self):
